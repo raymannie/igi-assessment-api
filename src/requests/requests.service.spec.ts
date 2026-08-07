@@ -10,6 +10,7 @@ import { RequestStatus } from '../common/types/request-status.enum';
 import { RequestType } from '../common/types/request-type.enum';
 import { UserRole } from '../common/types/user-role.enum';
 import { UserDocument } from '../users/schemas/user.schema';
+import { UploadsService } from '../uploads/uploads.service';
 import { CountersService } from './counters.service';
 import { QueryRequestsDto } from './dto/query-requests.dto';
 import { RequestsService } from './requests.service';
@@ -88,6 +89,10 @@ describe('RequestsService', () => {
           },
         },
         { provide: AuditService, useValue: { log, findByRequest: jest.fn() } },
+        {
+          provide: UploadsService,
+          useValue: { uploadFile: jest.fn(), deleteFile: jest.fn() },
+        },
       ],
     }).compile();
 

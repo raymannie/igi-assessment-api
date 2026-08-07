@@ -21,13 +21,13 @@ logout/me, both JWT strategies, and the `@Public`/`@Roles`/`@CurrentUser` +
 `JwtAuthGuard`/`RolesGuard` layer. `JwtAuthGuard` is registered globally, so **every new
 route is authenticated by default** — opt out with `@Public()`.
 
-`requests` and `audit` are done bar uploads: schemas with every SPEC §5 index, the state
-machine, the atomic `counters` requestNumber generator, `RequestOwnershipGuard`,
-`ParseObjectIdPipe`, and every SPEC §6 request endpoint except `POST /:id/documents` —
-create, list, read, audit-logs, assign, status, respond, withdraw.
+`requests`, `audit` and `uploads` are complete: schemas with every SPEC §5 index, the
+state machine, the atomic `counters` requestNumber generator, `RequestOwnershipGuard`,
+`ParseObjectIdPipe`, `FileValidationPipe`, Cloudinary behind `UploadsService`, and every
+SPEC §6 request endpoint — create, list, read, audit-logs, assign, status, respond
+(with optional attachments), withdraw, documents.
 
-Not started: `uploads`, `dashboard`, `seeds`. Dependencies for all of them are already
-installed.
+Not started: `dashboard`, `seeds`. Dependencies for both are already installed.
 
 `CLAUDE-backend.md` is the original draft of this file and is now superseded — prefer this
 one; delete that one when convenient.

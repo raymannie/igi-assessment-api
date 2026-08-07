@@ -8,15 +8,27 @@ import {
   Patch,
   Post,
   Query,
+  UploadedFiles,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FilesInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
   ApiOperation,
   ApiParam,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import { memoryStorage } from 'multer';
+
+import {
+  FileValidationPipe,
+  MAX_FILE_SIZE_BYTES,
+  MAX_FILES_PER_UPLOAD,
+} from '../common/pipes/file-validation.pipe';
 
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -30,6 +42,18 @@ import { QueryRequestsDto } from './dto/query-requests.dto';
 import { RespondDto } from './dto/respond.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import { RequestsService } from './requests.service';
+
+/**
+ * Files are held in memory and streamed straight to Cloudinary — nothing touches disk.
+ * The multer-level size limit aborts an oversized upload mid-stream instead of buffering
+ * it all first; Nest turns that into a 413, which the exception filter renders as
+ * FILE_TOO_LARGE. FileValidationPipe re-checks the size for the same reason it checks
+ * everything else: the interceptor config is not the pipe's to trust.
+ */
+const MULTER_OPTIONS = {
+  storage: memoryStorage(),
+  limits: { fileSize: MAX_FILE_SIZE_BYTES, files: MAX_FILES_PER_UPLOAD },
+};
 
 @ApiTags('Requests')
 @ApiBearerAuth('access-token')
@@ -199,12 +223,91 @@ export class RequestsController {
     description:
       'INVALID_TRANSITION — the request is not awaiting information.',
   })
+  @UseInterceptors(
+    FilesInterceptor('files', MAX_FILES_PER_UPLOAD, MULTER_OPTIONS),
+  )
+  @ApiConsumes('multipart/form-data', 'application/json')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['message'],
+      properties: {
+        message: { type: 'string', example: 'The police report is attached.' },
+        files: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: `Optional. Up to ${MAX_FILES_PER_UPLOAD} PDF/JPEG/PNG files, 5 MB each.`,
+        },
+      },
+    },
+  })
   respond(
     @Param('id', ParseObjectIdPipe) id: string,
     @CurrentUser() user: UserDocument,
     @Body() dto: RespondDto,
+    @UploadedFiles(new FileValidationPipe()) files: Express.Multer.File[],
   ) {
-    return this.requestsService.respond(id, user, dto);
+    return this.requestsService.respond(id, user, dto, files);
+  }
+
+  @UseGuards(RequestOwnershipGuard)
+  @Post(':id/documents')
+  @HttpCode(HttpStatus.OK)
+  @UseInterceptors(
+    FilesInterceptor('files', MAX_FILES_PER_UPLOAD, MULTER_OPTIONS),
+  )
+  @ApiParam({ name: 'id', description: '24-character request id' })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['files'],
+      properties: {
+        files: {
+          type: 'array',
+          items: { type: 'string', format: 'binary' },
+          description: `Up to ${MAX_FILES_PER_UPLOAD} PDF/JPEG/PNG files, 5 MB each.`,
+        },
+      },
+    },
+  })
+  @ApiOperation({
+    summary: 'Attach documents to a request',
+    description:
+      'Open to the owning customer and to the assigned officer. Allowed while the ' +
+      'request is not terminal. Either every file is stored or none is.',
+  })
+  @ApiResponse({ status: 200, description: 'Documents attached.' })
+  @ApiResponse({
+    status: 400,
+    description: 'VALIDATION_ERROR — no files, or too many.',
+  })
+  @ApiResponse({
+    status: 403,
+    description:
+      'FORBIDDEN — not the owner, or an officer who is not the assignee.',
+  })
+  @ApiResponse({
+    status: 409,
+    description:
+      'INVALID_TRANSITION — the request is APPROVED, DENIED or WITHDRAWN.',
+  })
+  @ApiResponse({
+    status: 413,
+    description: 'FILE_TOO_LARGE — a file exceeds 5 MB.',
+  })
+  @ApiResponse({
+    status: 415,
+    description:
+      'UNSUPPORTED_FILE_TYPE — not a PDF, JPEG or PNG, or a mismatched extension.',
+  })
+  addDocuments(
+    @Param('id', ParseObjectIdPipe) id: string,
+    @CurrentUser() user: UserDocument,
+    @UploadedFiles(new FileValidationPipe({ required: true }))
+    files: Express.Multer.File[],
+  ) {
+    return this.requestsService.addDocuments(id, user, files);
   }
 
   @Roles(UserRole.CUSTOMER)

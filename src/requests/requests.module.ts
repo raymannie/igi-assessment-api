@@ -3,6 +3,7 @@ import { MongooseModule } from '@nestjs/mongoose';
 
 import { AuditModule } from '../audit/audit.module';
 import { RequestOwnershipGuard } from '../common/guards/request-ownership.guard';
+import { UploadsModule } from '../uploads/uploads.module';
 import { CountersService } from './counters.service';
 import { RequestsController } from './requests.controller';
 import { RequestsService } from './requests.service';
@@ -16,6 +17,7 @@ import { Request, RequestSchema } from './schemas/request.schema';
       { name: Counter.name, schema: CounterSchema },
     ]),
     AuditModule,
+    UploadsModule,
   ],
   controllers: [RequestsController],
   providers: [RequestsService, CountersService, RequestOwnershipGuard],

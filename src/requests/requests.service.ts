@@ -2,6 +2,7 @@ import {
   ConflictException,
   ForbiddenException,
   Injectable,
+  InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
@@ -24,9 +25,15 @@ import { QueryRequestsDto } from './dto/query-requests.dto';
 import { RespondDto } from './dto/respond.dto';
 import { UpdateStatusDto } from './dto/update-status.dto';
 import {
+  folderForRequest,
+  StoredFile,
+  UploadsService,
+} from '../uploads/uploads.service';
+import {
   assertCurrentStatus,
   assertOfficerTransition,
   assertTransition,
+  isTerminal,
 } from './request-state.machine';
 import { HydratedRequest, Request } from './schemas/request.schema';
 
@@ -53,6 +60,7 @@ export class RequestsService {
     private readonly requestModel: Model<HydratedRequest>,
     private readonly countersService: CountersService,
     private readonly auditService: AuditService,
+    private readonly uploadsService: UploadsService,
   ) {}
 
   async create(customer: UserDocument, dto: CreateRequestDto) {
@@ -207,7 +215,12 @@ export class RequestsService {
    * SPEC §3: the customer answering a request for more information. The move back to
    * UNDER_REVIEW is automatic — the customer never names a status.
    */
-  async respond(id: string, customer: UserDocument, dto: RespondDto) {
+  async respond(
+    id: string,
+    customer: UserDocument,
+    dto: RespondDto,
+    files: Express.Multer.File[] = [],
+  ) {
     const current = await this.loadForMutation(id);
 
     assertCurrentStatus(
@@ -216,6 +229,10 @@ export class RequestsService {
       'responded to',
     );
     assertTransition(current.status, RequestStatus.UNDER_REVIEW);
+
+    // Files go up before the transition, so a storage failure leaves the request exactly
+    // as it was rather than moving it to UNDER_REVIEW with its evidence missing.
+    const stored = await this.storeDocuments(id, customer, files);
 
     await this.applyTransition(id, current.status, RequestStatus.UNDER_REVIEW);
 
@@ -228,9 +245,105 @@ export class RequestsService {
       fromStatus: current.status,
       toStatus: RequestStatus.UNDER_REVIEW,
       comment: dto.message,
+      ...(stored.length
+        ? { metadata: { fileNames: stored.map((file) => file.fileName) } }
+        : {}),
     });
 
     return this.findById(id);
+  }
+
+  /** SPEC.md §6/§7 — both roles may attach files while the request is still open. */
+  async addDocuments(
+    id: string,
+    user: UserDocument,
+    files: Express.Multer.File[],
+  ) {
+    const current = await this.loadForMutation(id);
+
+    // SPEC §7: uploads are allowed while a request is not terminal.
+    if (isTerminal(current.status)) {
+      throw new ConflictException({
+        message: `A ${current.status} request can no longer accept documents`,
+        code: 'INVALID_TRANSITION',
+      });
+    }
+
+    // RequestOwnershipGuard has already confirmed a customer owns this request, but it
+    // lets any officer through — only the assignee may add to one.
+    if (user.role === UserRole.OFFICER) {
+      this.assertIsAssignee(current.assignedOfficer, user);
+    }
+
+    const stored = await this.storeDocuments(id, user, files);
+
+    await this.auditService.log({
+      request: new Types.ObjectId(id),
+      actor: user._id,
+      actorRole: user.role,
+      actorName: user.fullName,
+      action: AuditAction.DOCUMENT_UPLOADED,
+      metadata: { fileNames: stored.map((file) => file.fileName) },
+    });
+
+    return this.findById(id);
+  }
+
+  /**
+   * Uploads every file first and only then writes them to the document in one `$push`.
+   *
+   * Two failure modes this avoids: a half-written `documents` array if the second of
+   * three uploads fails, and files orphaned in Cloudinary that nothing references. If any
+   * upload rejects, the ones that succeeded are deleted before the error propagates.
+   */
+  private async storeDocuments(
+    id: string,
+    user: UserDocument,
+    files: Express.Multer.File[],
+  ): Promise<StoredFile[]> {
+    if (!files.length) return [];
+
+    const folder = folderForRequest(id);
+    const settled = await Promise.allSettled(
+      files.map((file) => this.uploadsService.uploadFile(file, folder)),
+    );
+
+    const stored = settled
+      .filter((result) => result.status === 'fulfilled')
+      .map((result) => result.value);
+
+    const failure = settled.find((result) => result.status === 'rejected');
+    if (failure) {
+      await Promise.allSettled(
+        stored.map((file) => this.uploadsService.deleteFile(file.publicId)),
+      );
+      throw failure.reason instanceof Error
+        ? failure.reason
+        : new InternalServerErrorException({
+            message: 'Could not store the uploaded files',
+            code: 'INTERNAL_ERROR',
+          });
+    }
+
+    const uploadedAt = new Date();
+    await this.requestModel
+      .updateOne(
+        { _id: id },
+        {
+          $push: {
+            documents: {
+              $each: stored.map((file) => ({
+                ...file,
+                uploadedBy: user._id,
+                uploadedAt,
+              })),
+            },
+          },
+        },
+      )
+      .exec();
+
+    return stored;
   }
 
   /** SPEC §3/§11.8: WITHDRAWN is reachable only from NEEDS_ADDITIONAL_INFO. */

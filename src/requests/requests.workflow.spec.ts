@@ -12,6 +12,7 @@ import { AuditAction } from '../common/types/audit-action.enum';
 import { RequestStatus } from '../common/types/request-status.enum';
 import { UserRole } from '../common/types/user-role.enum';
 import { UserDocument } from '../users/schemas/user.schema';
+import { UploadsService } from '../uploads/uploads.service';
 import { CountersService } from './counters.service';
 import { RequestsService } from './requests.service';
 import { Request } from './schemas/request.schema';
@@ -87,6 +88,10 @@ describe('RequestsService — workflow transitions', () => {
           useValue: { nextRequestNumber: jest.fn() },
         },
         { provide: AuditService, useValue: { log, findByRequest: jest.fn() } },
+        {
+          provide: UploadsService,
+          useValue: { uploadFile: jest.fn(), deleteFile: jest.fn() },
+        },
       ],
     }).compile();
 
