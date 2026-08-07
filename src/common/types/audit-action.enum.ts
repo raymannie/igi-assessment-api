@@ -1,0 +1,11 @@
+/** SPEC.md §4 — must match the frontend union exactly. */
+export enum AuditAction {
+  REQUEST_CREATED = 'REQUEST_CREATED',
+  REQUEST_ASSIGNED = 'REQUEST_ASSIGNED',
+  STATUS_CHANGED = 'STATUS_CHANGED',
+  DOCUMENT_UPLOADED = 'DOCUMENT_UPLOADED',
+  CUSTOMER_RESPONDED = 'CUSTOMER_RESPONDED',
+  REQUEST_WITHDRAWN = 'REQUEST_WITHDRAWN',
+}
+
+export const AUDIT_ACTIONS = Object.values(AuditAction);

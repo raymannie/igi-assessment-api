@@ -1,12 +1,14 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 // Default import, not `* as cookieParser`: this tsconfig has esModuleInterop on, which
 // makes a namespace import of a CJS `export =` module non-callable (TS2349).
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 
 import { AppModule } from './app.module';
+import { REFRESH_COOKIE_NAME } from './auth/auth.constants';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 
@@ -35,6 +37,27 @@ async function bootstrap() {
 
   app.useGlobalInterceptors(new TransformInterceptor());
   app.useGlobalFilters(new AllExceptionsFilter());
+
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('IGI Portal API')
+    .setDescription(
+      'Claims and pre-authorization management. See SPEC.md for the domain contract.',
+    )
+    .setVersion('1.0')
+    .addBearerAuth(
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
+      'access-token',
+    )
+    .addCookieAuth(REFRESH_COOKIE_NAME)
+    .build();
+
+  SwaggerModule.setup(
+    'api/docs',
+    app,
+    SwaggerModule.createDocument(app, swaggerConfig),
+    // Keeps the token you paste into "Authorize" across page reloads.
+    { swaggerOptions: { persistAuthorization: true } },
+  );
 
   // The 0.0.0.0 binding is required for Railway's health check to reach the container.
   await app.listen(process.env.PORT ?? 4000, '0.0.0.0');

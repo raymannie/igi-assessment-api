@@ -15,9 +15,19 @@ here, it must change in the frontend repo too. This file covers only *how we bui
 **Current state: the application shell is in place; no feature modules yet.** Done:
 config validation (`config/validation.schema.ts`), `AppModule` wiring (Config, Mongoose,
 Throttler), the global `TransformInterceptor` and `AllExceptionsFilter`, `GET /health`,
-and `main.ts` (prefix, helmet, cookie-parser, CORS, ValidationPipe). Not started: `auth`,
-`users`, `requests`, `audit`, `uploads`, `dashboard`, `seeds`. Dependencies for all of
-them are already installed.
+and `main.ts` (prefix, helmet, cookie-parser, CORS, ValidationPipe), plus Swagger at
+`/api/docs`. `users` and `auth` are complete: the User schema, register/login/refresh/
+logout/me, both JWT strategies, and the `@Public`/`@Roles`/`@CurrentUser` +
+`JwtAuthGuard`/`RolesGuard` layer. `JwtAuthGuard` is registered globally, so **every new
+route is authenticated by default** — opt out with `@Public()`.
+
+`requests` and `audit` are done bar uploads: schemas with every SPEC §5 index, the state
+machine, the atomic `counters` requestNumber generator, `RequestOwnershipGuard`,
+`ParseObjectIdPipe`, and every SPEC §6 request endpoint except `POST /:id/documents` —
+create, list, read, audit-logs, assign, status, respond, withdraw.
+
+Not started: `uploads`, `dashboard`, `seeds`. Dependencies for all of them are already
+installed.
 
 `CLAUDE-backend.md` is the original draft of this file and is now superseded — prefer this
 one; delete that one when convenient.

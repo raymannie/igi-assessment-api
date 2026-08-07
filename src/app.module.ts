@@ -4,8 +4,13 @@ import { APP_GUARD } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
+import { AuditModule } from './audit/audit.module';
+import { AuthModule } from './auth/auth.module';
+import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { validationSchema } from './config/validation.schema';
 import { HealthModule } from './health/health.module';
+import { RequestsModule } from './requests/requests.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -25,11 +30,17 @@ import { HealthModule } from './health/health.module';
       throttlers: [{ ttl: 60_000, limit: 100 }],
     }),
     HealthModule,
+    UsersModule,
+    AuthModule,
+    AuditModule,
+    RequestsModule,
   ],
   providers: [
-    // Without this the ThrottlerModule is inert. Auth routes tighten this to
-    // 10/min with @Throttle when that module lands (SPEC.md §8).
+    // Order matters: rate limiting runs before authentication, so a flood of bad
+    // credentials is throttled rather than hitting bcrypt every time.
     { provide: APP_GUARD, useClass: ThrottlerGuard },
+    // Authentication is the default; routes opt out with @Public.
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
   ],
 })
 export class AppModule {}
