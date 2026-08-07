@@ -35,8 +35,8 @@ and every audit entry is genuine. Idempotent: users key on email, requests on
 `dashboard` is done — `GET /dashboard/stats` (officer only) computes every metric in a
 single `$facet` aggregation.
 
-Every endpoint in SPEC §6 now exists. What remains is deployment and the README
-(§10): `README.md` is still the stock NestJS starter.
+Every endpoint in SPEC §6 now exists, and `README.md` covers setup, architecture
+decisions, assumptions and known gaps (§10). What remains is deployment.
 
 `CLAUDE-backend.md` is the original draft of this file and is now superseded — prefer this
 one; delete that one when convenient.
@@ -168,5 +168,6 @@ Railway or Render. `npm run build && node dist/main`. Health check at `GET /api/
 CORS origin from `FRONTEND_URL` with `credentials: true`. Run the seed against prod once
 after the first deploy (it must be idempotent — safe to re-run).
 
-Note: `README.md` is still the stock NestJS starter README. Per [SPEC.md](SPEC.md) §10 it
-needs replacing with setup, stack rationale, assumptions, and the seeded test credentials.
+`README.md` is the §10 deliverable — setup, stack rationale, assumptions and known gaps.
+Its "Assumptions" and "Known gaps" sections are the ones that go stale fastest; update them
+when a decision there changes.
