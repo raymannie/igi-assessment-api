@@ -6,6 +6,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 
 import { AuditModule } from './audit/audit.module';
 import { AuthModule } from './auth/auth.module';
+import { DashboardModule } from './dashboard/dashboard.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { validationSchema } from './config/validation.schema';
 import { HealthModule } from './health/health.module';
@@ -34,6 +35,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     AuditModule,
     RequestsModule,
+    DashboardModule,
   ],
   providers: [
     // Order matters: rate limiting runs before authentication, so a flood of bad

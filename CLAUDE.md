@@ -32,7 +32,11 @@ history through the real service methods, so every transition is state-machine-v
 and every audit entry is genuine. Idempotent: users key on email, requests on
 `description`.
 
-Not started: `dashboard`. Its dependencies are already installed.
+`dashboard` is done — `GET /dashboard/stats` (officer only) computes every metric in a
+single `$facet` aggregation.
+
+Every endpoint in SPEC §6 now exists. What remains is deployment and the README
+(§10): `README.md` is still the stock NestJS starter.
 
 `CLAUDE-backend.md` is the original draft of this file and is now superseded — prefer this
 one; delete that one when convenient.
