@@ -27,7 +27,12 @@ state machine, the atomic `counters` requestNumber generator, `RequestOwnershipG
 SPEC §6 request endpoint — create, list, read, audit-logs, assign, status, respond
 (with optional attachments), withdraw, documents.
 
-Not started: `dashboard`, `seeds`. Dependencies for both are already installed.
+`seeds` is done — `npm run seed` boots an application context and replays each request's
+history through the real service methods, so every transition is state-machine-validated
+and every audit entry is genuine. Idempotent: users key on email, requests on
+`description`.
+
+Not started: `dashboard`. Its dependencies are already installed.
 
 `CLAUDE-backend.md` is the original draft of this file and is now superseded — prefer this
 one; delete that one when convenient.
@@ -47,9 +52,10 @@ npm run lint                   # eslint --fix
 npm run format                 # prettier --write
 ```
 
-`npm run seed` is referenced by the deployment plan but **does not exist yet** — it needs
-adding to `package.json` (`ts-node src/seeds/seed.ts` or a compiled equivalent) alongside
-`src/seeds/seed.ts`.
+`npm run seed` (`ts-node src/seeds/seed.ts`) is idempotent and safe to re-run against
+production. Seed *content* lives in `src/seeds/seed-data.ts`; `seed-data.spec.ts` replays
+every row against the state machine, so an illegal sequence fails in CI rather than
+part-way through writing to the database.
 
 ## Stack notes that differ from the drafts
 

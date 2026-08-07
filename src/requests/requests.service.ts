@@ -430,7 +430,7 @@ export class RequestsService {
       .findOneAndUpdate(
         { _id: id, status: from, ...extraConditions },
         { $set: { status: to, ...set } },
-        { new: true },
+        { returnDocument: 'after' },
       )
       .lean()
       .exec();

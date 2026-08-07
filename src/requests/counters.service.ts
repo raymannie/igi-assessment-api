@@ -38,7 +38,7 @@ export class CountersService {
       .findOneAndUpdate(
         { _id: key },
         { $inc: { seq: 1 } },
-        { upsert: true, new: true, setDefaultsOnInsert: true },
+        { upsert: true, returnDocument: 'after', setDefaultsOnInsert: true },
       )
       .lean()
       .exec();

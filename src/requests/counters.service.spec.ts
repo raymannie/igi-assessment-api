@@ -54,7 +54,7 @@ describe('CountersService', () => {
     expect(findOneAndUpdate).toHaveBeenCalledWith(
       { _id: 'CLM-2026' },
       { $inc: { seq: 1 } },
-      expect.objectContaining({ upsert: true, new: true }),
+      expect.objectContaining({ upsert: true, returnDocument: 'after' }),
     );
   });
 
