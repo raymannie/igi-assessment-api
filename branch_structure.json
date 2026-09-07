@@ -1,0 +1,18 @@
+{
+  "default_branch": "main",
+  "branches": [
+    "main",
+    "origin",
+    "raymannie-patch-1"
+  ],
+  "parent": {
+    "main": null,
+    "origin": "main",
+    "raymannie-patch-1": "main"
+  },
+  "order": [
+    "main",
+    "origin",
+    "raymannie-patch-1"
+  ]
+}
